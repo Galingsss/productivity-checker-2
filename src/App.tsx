@@ -484,21 +484,21 @@ function DashboardCard({
             <p className="text-[10px] mt-0.5">Data tidak ditemukan.</p>
           </div>
         ) : (
-          <table className="w-full text-left border-collapse" id={`${id}_table`}>
+          <table className="w-full text-left border-collapse table-fixed" id={`${id}_table`}>
             <thead className="bg-white sticky top-0 z-10" id={`${id}_thead`}>
               <tr className="text-[11px] font-black text-[#002d66] tracking-wider uppercase border-t border-b border-slate-200 bg-white" id={`${id}_thead_row`}>
-                <th className="py-2.5 px-2 font-black text-left w-[42%]">NAMA</th>
-                <th className="py-2.5 px-1 font-black text-center w-[15%]">SO</th>
-                <th className="py-2.5 px-1 font-black text-center w-[25%]">SKU</th>
-                <th className="py-2.5 px-2 font-black text-right w-[18%]">QTY</th>
+                <th className="py-2.5 px-2 font-black text-left w-[58%]">NAMA</th>
+                <th className="py-2.5 px-1 font-black text-center w-[11%]">SO</th>
+                <th className="py-2.5 px-1 font-black text-center w-[17%]">SKU</th>
+                <th className="py-2.5 pr-5 font-black text-right w-[14%]">QTY</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100" id={`${id}_tbody`}>
               {records.map((record, idx) => {
                 
                 // Shorten very long names to fit columns perfectly as shown in the image
-                const displayName = record.name.length > 15 
-                  ? record.name.substring(0, 13) + "..." 
+                const displayName = record.name.length > 25 
+                  ? record.name.substring(0, 22) + "..." 
                   : record.name;
 
                 return (
@@ -509,7 +509,7 @@ function DashboardCard({
                   >
                     {/* Name Column - Ultra Bold Upper-Case text with max-width limits */}
                     <td className="py-3 px-2 font-sans font-black text-[13px] text-black uppercase" id={`${id}_row_${idx}_name`}>
-                      <div className="truncate max-w-[110px] sm:max-w-[130px] lg:max-w-[110px] xl:max-w-[135px]" title={record.name}>
+                      <div className="truncate w-full" title={record.name}>
                         {displayName}
                       </div>
                     </td>
@@ -527,7 +527,7 @@ function DashboardCard({
                     </td>
 
                     {/* QTY Column - Plain Bold Text */}
-                    <td className="py-3 px-2 text-right font-sans font-extrabold text-slate-900 text-[13px]" id={`${id}_row_${idx}_qty`}>
+                    <td className="py-3 pr-5 text-right font-sans font-extrabold text-slate-900 text-[13px]" id={`${id}_row_${idx}_qty`}>
                       {record.qty}
                     </td>
 
