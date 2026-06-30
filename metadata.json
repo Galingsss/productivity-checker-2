@@ -1,0 +1,6 @@
+{
+  "name": "Productivity Checker 2",
+  "description": "Dashboard monitoring real-time produktivitas checker dengan data dari Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
