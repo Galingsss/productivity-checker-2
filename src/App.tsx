@@ -440,16 +440,25 @@ function DashboardCard({
   isMonthly
 }: DashboardCardProps) {
   
-  // Calculate average SKU for monthly
-  const totalSku = records.reduce((sum, r) => sum + r.sku, 0);
-  const averageSku = records.length > 0 ? totalSku / records.length : 0;
+  // Calculate dynamic monthly target based on active running days in the current month
+  // - 1 week = 7 days, each person gets 1 day off (6 working days)
+  // - Baseline = 300 SKU per working day
+  const getMonthlyTargetSku = () => {
+    const now = new Date();
+    const currentDay = now.getDate(); // 1 to 31 depending on the day of the month
+    const expectedWorkingDays = Math.round(currentDay * 6 / 7);
+    const target = Math.max(1, expectedWorkingDays) * 300;
+    return { target, currentDay, expectedWorkingDays };
+  };
+
+  const monthlyTarget = getMonthlyTargetSku();
 
   // Custom SKU badge classes:
   // - Daily Shifts: target is 300. Values >= 300 are green, < 300 are red.
-  // - Monthly: above/equal to average is green, below average is red.
+  // - Monthly: dynamic target based on current month running days >= target is green, < target is red.
   const getSkuBadgeClass = (value: number) => {
     if (isMonthly) {
-      if (value >= averageSku) {
+      if (value >= monthlyTarget.target) {
         return "bg-[#def7ec] text-[#03543f] border-[#bfeecf]";
       }
       return "bg-[#fde8e8] text-[#e02424] border-[#fbd5d5]";
@@ -471,7 +480,7 @@ function DashboardCard({
         </h3>
         <div className="w-full mt-2.5 h-[3px] bg-[#0a5cff]" id={`${id}_blue_line`}></div>
         <div className="text-[10px] text-slate-400 font-extrabold tracking-wider mt-1.5" id={`${id}_baseline_info`}>
-          {isMonthly ? `AVERAGE SKU: ${averageSku.toFixed(1)}` : "TARGET: ≥ 300 SKU"}
+          {isMonthly ? `TARGET S/D TGL ${monthlyTarget.currentDay}: ≥ ${monthlyTarget.target} SKU` : "TARGET: ≥ 300 SKU"}
         </div>
       </div>
 
