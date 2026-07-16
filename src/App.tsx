@@ -459,14 +459,14 @@ function DashboardCard({
   const getSkuBadgeClass = (value: number) => {
     if (isMonthly) {
       if (value >= monthlyTarget.target) {
-        return "bg-[#def7ec] text-[#03543f] border-[#bfeecf]";
+        return "bg-[#def7ec] border-[#bfeecf]";
       }
-      return "bg-[#fde8e8] text-[#e02424] border-[#fbd5d5]";
+      return "bg-[#fde8e8] border-[#fbd5d5]";
     } else {
       if (value >= 300) {
-        return "bg-[#def7ec] text-[#03543f] border-[#bfeecf]";
+        return "bg-[#def7ec] border-[#bfeecf]";
       }
-      return "bg-[#fde8e8] text-[#e02424] border-[#fbd5d5]";
+      return "bg-[#fde8e8] border-[#fbd5d5]";
     }
   };
 
@@ -495,11 +495,11 @@ function DashboardCard({
         ) : (
           <table className="w-full text-left border-collapse table-fixed" id={`${id}_table`}>
             <thead className="bg-white sticky top-0 z-10" id={`${id}_thead`}>
-              <tr className="text-[11px] font-black text-[#002d66] tracking-wider uppercase border-t border-b border-slate-200 bg-white" id={`${id}_thead_row`}>
-                <th className="py-2.5 px-2 font-black text-left w-[58%]">NAMA</th>
-                <th className="py-2.5 px-1 font-black text-center w-[11%]">SO</th>
-                <th className="py-2.5 px-1 font-black text-center w-[17%]">SKU</th>
-                <th className="py-2.5 pr-5 font-black text-right w-[14%]">QTY</th>
+              <tr className="text-[12px] font-black text-[#002d66] tracking-wider uppercase border-t border-b border-slate-200 bg-white" id={`${id}_thead_row`}>
+                <th className="py-2.5 px-2 font-black text-left w-[44%]">NAMA</th>
+                <th className="py-2.5 px-1 font-black text-center w-[14%]">SO</th>
+                <th className="py-2.5 px-1 font-black text-center w-[24%]">SKU</th>
+                <th className="py-2.5 pr-4 font-black text-right w-[18%]">QTY</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100" id={`${id}_tbody`}>
@@ -517,26 +517,26 @@ function DashboardCard({
                     id={`${id}_row_${idx}`}
                   >
                     {/* Name Column - Ultra Bold Upper-Case text with max-width limits */}
-                    <td className="py-3 px-2 font-sans font-black text-[13px] text-black uppercase" id={`${id}_row_${idx}_name`}>
+                    <td className="py-3 px-2 font-sans font-black text-[15px] text-black uppercase" id={`${id}_row_${idx}_name`}>
                       <div className="truncate w-full" title={record.name}>
                         {displayName}
                       </div>
                     </td>
 
                     {/* SO Column - Plain Bold Text */}
-                    <td className="py-3 px-1 text-center font-sans font-extrabold text-slate-900 text-[13px]" id={`${id}_row_${idx}_so`}>
+                    <td className="py-3 px-1 text-center font-sans font-black text-black text-[15px]" id={`${id}_row_${idx}_so`}>
                       {record.so}
                     </td>
 
                     {/* SKU Column - Styled as a Colored Pill Badge matching the image */}
                     <td className="py-3 px-1 text-center" id={`${id}_row_${idx}_sku`}>
-                      <span className={`inline-block text-center text-[12px] py-1 px-2.5 rounded-lg border font-black min-w-[45px] ${getSkuBadgeClass(record.sku)}`}>
+                      <span className={`inline-block text-center text-[22px] py-0.5 px-3.5 rounded-lg border font-black min-w-[65px] text-black ${getSkuBadgeClass(record.sku)}`}>
                         {record.sku}
                       </span>
                     </td>
 
                     {/* QTY Column - Plain Bold Text */}
-                    <td className="py-3 pr-5 text-right font-sans font-extrabold text-slate-900 text-[13px]" id={`${id}_row_${idx}_qty`}>
+                    <td className="py-3 pr-4 text-right font-sans font-black text-black text-[15px]" id={`${id}_row_${idx}_qty`}>
                       {record.qty}
                     </td>
 
