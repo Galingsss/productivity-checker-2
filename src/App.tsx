@@ -269,24 +269,24 @@ export default function App() {
     <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans select-none" id="app_root">
       
       {/* High-Contrast Upper Header Bar matching the image exactly */}
-      <div className="bg-white px-8 py-5 flex flex-col md:flex-row items-center justify-between border-b border-slate-200" id="header_container">
+      <div className="bg-white px-6 py-2.5 flex flex-col md:flex-row items-center justify-between border-b border-slate-200" id="header_container">
         
         {/* Title Block */}
         <div className="flex flex-col text-center md:text-left" id="title_block">
-          <h1 className="font-sans font-black text-3xl md:text-4xl text-[#002d66] tracking-tight leading-none uppercase" id="main_title">
+          <h1 className="font-sans font-black text-2xl md:text-3xl text-[#002d66] tracking-tight leading-none uppercase" id="main_title">
             PRODUCTIVITY CHECKER 2
           </h1>
-          <div className="text-blue-600 font-extrabold text-sm mt-1.5" id="update_info">
+          <div className="text-blue-600 font-extrabold text-xs mt-1" id="update_info">
             Update: {lastUpdated}
           </div>
         </div>
 
         {/* Live Clock & Date */}
-        <div className="flex flex-col items-center md:items-end text-center md:text-right mt-3 md:mt-0" id="clock_block">
-          <span className="text-5xl md:text-6xl font-black font-sans text-blue-600 tracking-wide leading-none" id="live_clock">
+        <div className="flex flex-col items-center md:items-end text-center md:text-right mt-1.5 md:mt-0" id="clock_block">
+          <span className="text-3xl md:text-4xl font-black font-sans text-blue-600 tracking-wide leading-none" id="live_clock">
             {timeStr}
           </span>
-          <span className="text-xs font-extrabold text-slate-500 tracking-wider uppercase mt-1.5" id="live_date">
+          <span className="text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mt-0.5" id="live_date">
             {dateStr}
           </span>
         </div>
@@ -294,7 +294,7 @@ export default function App() {
       </div>
 
       {/* Main Content Dashboard Area with Soft Blue-Grey Background */}
-      <div className="flex-1 px-8 py-6" id="dashboard_main_content">
+      <div className="flex-1 px-5 py-4" id="dashboard_main_content">
         
         {/* Offline / Error Alerts */}
         {error && (
@@ -471,21 +471,21 @@ function DashboardCard({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm flex flex-col h-[calc(100vh-150px)] min-h-[600px] overflow-hidden" id={id}>
+    <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm flex flex-col h-[calc(100vh-100px)] min-h-[540px] overflow-hidden" id={id}>
       
       {/* Card Header Panel with Blue centered title and separator line */}
-      <div className="pt-4 pb-2 px-4 flex flex-col items-center text-center" id={`${id}_header`}>
+      <div className="pt-2.5 pb-1.5 px-4 flex flex-col items-center text-center" id={`${id}_header`}>
         <h3 className="font-sans font-black text-slate-800 text-sm tracking-wide uppercase" id={`${id}_title`}>
           {title}
         </h3>
-        <div className="w-full mt-2.5 h-[3px] bg-[#0a5cff]" id={`${id}_blue_line`}></div>
-        <div className="text-[10px] text-slate-400 font-extrabold tracking-wider mt-1.5" id={`${id}_baseline_info`}>
+        <div className="w-full mt-1.5 h-[3px] bg-[#0a5cff]" id={`${id}_blue_line`}></div>
+        <div className="text-[10px] text-slate-400 font-extrabold tracking-wider mt-1" id={`${id}_baseline_info`}>
           {isMonthly ? `TARGET S/D TGL ${monthlyTarget.currentDay}: ≥ ${monthlyTarget.target} SKU` : "TARGET: ≥ 300 SKU"}
         </div>
       </div>
 
       {/* Table Body - Scrollable Container */}
-      <div className="flex-1 overflow-y-auto px-1.5 pb-4" id={`${id}_table_container`}>
+      <div className="flex-1 overflow-y-auto px-1.5 pb-3" id={`${id}_table_container`}>
         {records.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center p-6 text-center text-slate-400" id={`${id}_empty`}>
             <AlertCircle className="w-8 h-8 mb-2 text-slate-300" />
@@ -496,10 +496,10 @@ function DashboardCard({
           <table className="w-full text-left border-collapse table-fixed" id={`${id}_table`}>
             <thead className="bg-white sticky top-0 z-10" id={`${id}_thead`}>
               <tr className="text-[12px] font-black text-[#002d66] tracking-wider uppercase border-t border-b border-slate-200 bg-white" id={`${id}_thead_row`}>
-                <th className="py-2.5 px-2 font-black text-left w-[44%]">NAMA</th>
-                <th className="py-2.5 px-1 font-black text-center w-[14%]">SO</th>
-                <th className="py-2.5 px-1 font-black text-center w-[24%]">SKU</th>
-                <th className="py-2.5 pr-4 font-black text-right w-[18%]">QTY</th>
+                <th className="py-1.5 px-2 font-black text-left w-[44%]">NAMA</th>
+                <th className="py-1.5 px-1 font-black text-center w-[14%]">SO</th>
+                <th className="py-1.5 px-1 font-black text-center w-[24%]">SKU</th>
+                <th className="py-1.5 pr-4 font-black text-right w-[18%]">QTY</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100" id={`${id}_tbody`}>
@@ -517,26 +517,26 @@ function DashboardCard({
                     id={`${id}_row_${idx}`}
                   >
                     {/* Name Column - Ultra Bold Upper-Case text with max-width limits */}
-                    <td className="py-3 px-2 font-sans font-black text-[15px] text-black uppercase" id={`${id}_row_${idx}_name`}>
+                    <td className="py-1.5 px-2 font-sans font-black text-[15px] text-black uppercase" id={`${id}_row_${idx}_name`}>
                       <div className="truncate w-full" title={record.name}>
                         {displayName}
                       </div>
                     </td>
 
                     {/* SO Column - Plain Bold Text */}
-                    <td className="py-3 px-1 text-center font-sans font-black text-black text-[15px]" id={`${id}_row_${idx}_so`}>
+                    <td className="py-1.5 px-1 text-center font-sans font-black text-black text-[15px]" id={`${id}_row_${idx}_so`}>
                       {record.so}
                     </td>
 
                     {/* SKU Column - Styled as a Colored Pill Badge matching the image */}
-                    <td className="py-3 px-1 text-center" id={`${id}_row_${idx}_sku`}>
+                    <td className="py-1 px-1 text-center" id={`${id}_row_${idx}_sku`}>
                       <span className={`inline-block text-center text-[22px] py-0.5 px-3.5 rounded-lg border font-black min-w-[65px] text-black ${getSkuBadgeClass(record.sku)}`}>
                         {record.sku}
                       </span>
                     </td>
 
                     {/* QTY Column - Plain Bold Text */}
-                    <td className="py-3 pr-4 text-right font-sans font-black text-black text-[15px]" id={`${id}_row_${idx}_qty`}>
+                    <td className="py-1.5 pr-4 text-right font-sans font-black text-black text-[15px]" id={`${id}_row_${idx}_qty`}>
                       {record.qty}
                     </td>
 
