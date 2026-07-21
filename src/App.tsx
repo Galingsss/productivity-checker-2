@@ -1,9 +1,14 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, FormEvent } from "react";
 import { 
   RefreshCw, 
   ExternalLink,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Settings,
+  Lock,
+  X,
+  CheckCircle2,
+  LogOut
 } from "lucide-react";
 
 // TS Interfaces matching our spreadsheet columns
@@ -27,6 +32,59 @@ interface DashboardData {
   monthly: TableData;
 }
 
+// Helper to get effective date based on 07:00 AM shift boundary
+function getEffectiveDate(date: Date = new Date()): string {
+  const d = new Date(date);
+  // Before 07:00 AM, it is counted as yesterday's date
+  if (d.getHours() < 7) {
+    d.setDate(d.getDate() - 1);
+  }
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// Calculate monthly accumulated target safely up to the effective date, skipping Sundays
+function calculateMonthlyTarget(defaultBaseline: number, customBaselines: Record<string, number>, effectiveDateStr: string) {
+  const [year, month, day] = effectiveDateStr.split('-').map(Number);
+  let accumulatedTarget = 0;
+  
+  for (let d = 1; d <= day; d++) {
+    const tempDate = new Date(year, month - 1, d);
+    const isSunday = tempDate.getDay() === 0;
+    
+    if (!isSunday) {
+      const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const targetForDay = customBaselines[formattedDate] !== undefined 
+        ? Number(customBaselines[formattedDate]) 
+        : defaultBaseline;
+      accumulatedTarget += targetForDay;
+    }
+  }
+  return {
+    target: accumulatedTarget,
+    currentDay: day
+  };
+}
+
+// Format date to Indonesian language string
+function formatEffectiveDateIndo(dateStr: string): string {
+  const [yyyy, mm, dd] = dateStr.split('-').map(Number);
+  const tempDate = new Date(yyyy, mm - 1, dd);
+  
+  const daysIndo = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+  const monthsIndo = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+  ];
+  
+  const dayName = daysIndo[tempDate.getDay()];
+  const monthName = monthsIndo[tempDate.getMonth()];
+  
+  return `${dayName}, ${dd} ${monthName} ${yyyy}`;
+}
+
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSWrhWk7XPbOlgcXg8qNdAaH5Rg4pqZEEPuvxWNcVvoLDmYq9znpHv5jg-g_T__YRl-bFaqAZzeDOMT/pub?output=csv";
 
 export default function App() {
@@ -41,6 +99,54 @@ export default function App() {
   // Live Clock State
   const [timeStr, setTimeStr] = useState<string>("00.00.00");
   const [dateStr, setDateStr] = useState<string>("SELASA, 30 JUNI 2026");
+
+  // ----------------------------------------------------
+  // BASELINE SETTINGS STATES (Durable Cloud-Free Persistence via localStorage)
+  // ----------------------------------------------------
+  const [defaultBaseline, setDefaultBaseline] = useState<number>(() => {
+    const saved = localStorage.getItem("defaultBaseline");
+    return saved ? Number(saved) : 300;
+  });
+
+  const [customBaselines, setCustomBaselines] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem("customBaselines");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [storedPin, setStoredPin] = useState<string>(() => {
+    const saved = localStorage.getItem("adminPin");
+    if (!saved) {
+      localStorage.setItem("adminPin", "8899");
+      return "8899";
+    }
+    return saved;
+  });
+
+  // Modal & Auth state
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
+
+  // Form states
+  const [adminEmail, setAdminEmail] = useState<string>("");
+  const [adminPinInput, setAdminPinInput] = useState<string>("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  const [defaultBaselineInput, setDefaultBaselineInput] = useState<number | string>(300);
+  const [customTodayInput, setCustomTodayInput] = useState<number | string>(300);
+  const [newPinInput, setNewPinInput] = useState<string>("");
+  const [pinUpdateSuccess, setPinUpdateSuccess] = useState<boolean>(false);
+  const [settingsSuccessMessage, setSettingsSuccessMessage] = useState<string | null>(null);
+
+  const todayEffectiveDate = getEffectiveDate();
+  const todayTarget = customBaselines[todayEffectiveDate] !== undefined 
+    ? Number(customBaselines[todayEffectiveDate]) 
+    : defaultBaseline;
+
+  const calculatedMonthly = calculateMonthlyTarget(defaultBaseline, customBaselines, todayEffectiveDate);
 
   // Interval reference for countdown
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -260,6 +366,75 @@ export default function App() {
     };
   }, [isAutoRefresh, loading]);
 
+  // ----------------------------------------------------
+  // SETTINGS MODAL FORM HANDLERS
+  // ----------------------------------------------------
+  const handleLogin = (e: FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
+    if (adminEmail.trim().toLowerCase() !== "galang.erdiansyah@mhealth.tech") {
+      setLoginError("Email tidak terdaftar!");
+      return;
+    }
+    if (adminPinInput !== storedPin) {
+      setLoginError("PIN Keamanan salah!");
+      return;
+    }
+    setIsAdminAuthenticated(true);
+    setDefaultBaselineInput(defaultBaseline);
+    setCustomTodayInput(customBaselines[todayEffectiveDate] !== undefined ? customBaselines[todayEffectiveDate] : defaultBaseline);
+  };
+
+  const handleSaveSettings = (e: FormEvent) => {
+    e.preventDefault();
+    setSettingsSuccessMessage(null);
+    
+    const newDefault = Number(defaultBaselineInput);
+    if (isNaN(newDefault) || newDefault <= 0) {
+      setSettingsSuccessMessage("Target Default tidak valid!");
+      return;
+    }
+
+    const newCustom = Number(customTodayInput);
+    if (isNaN(newCustom) || newCustom < 0) {
+      setSettingsSuccessMessage("Target Khusus Hari Ini tidak valid!");
+      return;
+    }
+
+    // Save Default Baseline
+    setDefaultBaseline(newDefault);
+    localStorage.setItem("defaultBaseline", String(newDefault));
+
+    // Save Custom Baseline for Effective Date
+    const updatedCustoms = { ...customBaselines, [todayEffectiveDate]: newCustom };
+    setCustomBaselines(updatedCustoms);
+    localStorage.setItem("customBaselines", JSON.stringify(updatedCustoms));
+
+    setSettingsSuccessMessage("Pengaturan Baseline berhasil disimpan!");
+    setTimeout(() => setSettingsSuccessMessage(null), 3000);
+  };
+
+  const handleUpdatePin = (e: FormEvent) => {
+    e.preventDefault();
+    setPinUpdateSuccess(false);
+    if (newPinInput.trim().length < 4) {
+      alert("PIN Keamanan harus minimal 4 digit!");
+      return;
+    }
+    localStorage.setItem("adminPin", newPinInput.trim());
+    setStoredPin(newPinInput.trim());
+    setNewPinInput("");
+    setPinUpdateSuccess(true);
+    setTimeout(() => setPinUpdateSuccess(false), 3000);
+  };
+
+  const handleLogout = () => {
+    setIsAdminAuthenticated(false);
+    setAdminEmail("");
+    setAdminPinInput("");
+    setLoginError(null);
+  };
+
   // Handle manual sync button
   const handleSync = () => {
     fetchCSVData();
@@ -281,14 +456,32 @@ export default function App() {
           </div>
         </div>
 
-        {/* Live Clock & Date */}
-        <div className="flex flex-col items-center md:items-end text-center md:text-right mt-1.5 md:mt-0" id="clock_block">
-          <span className="text-3xl md:text-4xl font-black font-sans text-blue-600 tracking-wide leading-none" id="live_clock">
-            {timeStr}
-          </span>
-          <span className="text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mt-0.5" id="live_date">
-            {dateStr}
-          </span>
+        {/* Right side container with clock and settings */}
+        <div className="flex items-center gap-4 mt-1.5 md:mt-0" id="header_right_side">
+          {/* Live Clock & Date */}
+          <div className="flex flex-col items-center md:items-end text-center md:text-right" id="clock_block">
+            <span className="text-3xl md:text-4xl font-black font-sans text-blue-600 tracking-wide leading-none" id="live_clock">
+              {timeStr}
+            </span>
+            <span className="text-[11px] font-extrabold text-slate-500 tracking-wider uppercase mt-0.5" id="live_date">
+              {dateStr}
+            </span>
+          </div>
+
+          {/* Settings Trigger Gear Button */}
+          <button
+            id="btn_open_settings"
+            onClick={() => {
+              setIsSettingsOpen(true);
+              setDefaultBaselineInput(defaultBaseline);
+              setCustomTodayInput(customBaselines[todayEffectiveDate] !== undefined ? customBaselines[todayEffectiveDate] : defaultBaseline);
+              setLoginError(null);
+            }}
+            className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-blue-600 rounded-full transition-all border border-slate-200/80 shadow-sm focus:outline-none cursor-pointer flex items-center justify-center"
+            title="Smart Daily Baseline Settings"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
         </div>
 
       </div>
@@ -339,6 +532,9 @@ export default function App() {
               title={data.shift1.title} 
               records={data.shift1.records} 
               isMonthly={false}
+              todayTarget={todayTarget}
+              monthlyTargetVal={calculatedMonthly.target}
+              monthlyTargetDay={calculatedMonthly.currentDay}
             />
 
             {/* Table 2: Shift 2 */}
@@ -347,6 +543,9 @@ export default function App() {
               title={data.shift2.title} 
               records={data.shift2.records} 
               isMonthly={false}
+              todayTarget={todayTarget}
+              monthlyTargetVal={calculatedMonthly.target}
+              monthlyTargetDay={calculatedMonthly.currentDay}
             />
 
             {/* Table 3: Shift 3 */}
@@ -355,6 +554,9 @@ export default function App() {
               title={data.shift3.title} 
               records={data.shift3.records} 
               isMonthly={false}
+              todayTarget={todayTarget}
+              monthlyTargetVal={calculatedMonthly.target}
+              monthlyTargetDay={calculatedMonthly.currentDay}
             />
 
             {/* Table 4: Monthly */}
@@ -363,6 +565,9 @@ export default function App() {
               title={data.monthly.title} 
               records={data.monthly.records} 
               isMonthly={true}
+              todayTarget={todayTarget}
+              monthlyTargetVal={calculatedMonthly.target}
+              monthlyTargetDay={calculatedMonthly.currentDay}
             />
 
           </div>
@@ -421,6 +626,222 @@ export default function App() {
 
       </div>
 
+      {/* Settings Modal (Overlay pop-up) */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" id="settings_modal">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" id="settings_modal_content">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-150 flex items-center justify-between bg-[#002d66] text-white" id="settings_modal_header">
+              <div className="flex items-center gap-2">
+                <Settings className="w-5 h-5 animate-spin" style={{ animationDuration: '6s' }} />
+                <h2 className="font-sans font-black text-xs tracking-wide uppercase">Smart Daily Baseline Settings</h2>
+              </div>
+              <button 
+                onClick={() => setIsSettingsOpen(false)}
+                className="p-1 hover:bg-white/10 rounded-lg transition-colors cursor-pointer flex items-center justify-center"
+                id="btn_close_modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-6" id="settings_modal_body">
+              {!isAdminAuthenticated ? (
+                /* Login Form */
+                <form onSubmit={handleLogin} className="space-y-4" id="login_form">
+                  <div className="flex flex-col items-center text-center pb-2">
+                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-2 border border-blue-100">
+                      <Lock className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-sm font-extrabold text-slate-800">Autentikasi Admin Terbatas</h3>
+                    <p className="text-xs text-slate-400 mt-1">Gunakan email terdaftar & PIN keamanan untuk mengakses pengaturan.</p>
+                  </div>
+
+                  {loginError && (
+                    <div className="p-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2 text-red-700 text-xs font-bold animate-pulse" id="login_error">
+                      <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                      <span>{loginError}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-black text-slate-500 tracking-wider uppercase mb-1">Email Terdaftar</label>
+                      <input 
+                        type="email"
+                        required
+                        placeholder="nama@email.com"
+                        value={adminEmail}
+                        onChange={(e) => setAdminEmail(e.target.value)}
+                        className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        id="input_admin_email"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-black text-slate-500 tracking-wider uppercase mb-1">PIN Keamanan</label>
+                      <input 
+                        type="password"
+                        required
+                        maxLength={12}
+                        placeholder="••••"
+                        value={adminPinInput}
+                        onChange={(e) => setAdminPinInput(e.target.value)}
+                        className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold tracking-widest text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        id="input_admin_pin"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all duration-150 flex items-center justify-center gap-2 mt-4 cursor-pointer"
+                    id="btn_login_submit"
+                  >
+                    <span>Masuk Panel Admin</span>
+                  </button>
+                </form>
+              ) : (
+                /* Authenticated Settings View */
+                <div className="space-y-6" id="admin_panel_content">
+                  
+                  {/* Logged in Info banner */}
+                  <div className="bg-slate-50 border border-slate-200/60 p-3 rounded-xl flex items-center justify-between text-xs" id="admin_info_banner">
+                    <div className="truncate">
+                      <p className="text-[10px] text-slate-400 font-black tracking-wider uppercase">Masuk Sebagai Admin</p>
+                      <p className="font-extrabold text-slate-700 truncate" title="galang.erdiansyah@mhealth.tech">galang.erdiansyah@mhealth.tech</p>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="p-1.5 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors flex items-center gap-1 font-bold cursor-pointer text-[10px]"
+                      title="Log Out"
+                      id="btn_logout"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+
+                  {/* Shift Indicator & Effective Date */}
+                  <div className="bg-blue-50/50 border border-blue-100/80 p-3 rounded-xl text-xs" id="shift_indicator">
+                    <p className="text-[10px] text-blue-500 font-black tracking-wider uppercase">Hari Kerja Efektif Saat Ini</p>
+                    <p className="font-black text-blue-900 mt-0.5">{formatEffectiveDateIndo(todayEffectiveDate)}</p>
+                    <p className="text-[9px] text-slate-400 font-medium mt-1">Siklus harian di-reset otomatis setiap pukul 07:00 Pagi (Shift Boundary).</p>
+                  </div>
+
+                  {/* Target Settings Form */}
+                  <form onSubmit={handleSaveSettings} className="space-y-4" id="baseline_form">
+                    <h4 className="text-[11px] font-black text-slate-500 tracking-wider uppercase border-b border-slate-100 pb-1">Ubah Target Baseline Harian</h4>
+                    
+                    {settingsSuccessMessage && (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-xl flex items-center gap-2" id="settings_success">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                        <span>{settingsSuccessMessage}</span>
+                      </div>
+                    )}
+
+                    <div className="space-y-3.5">
+                      <div>
+                        <label className="block text-[11px] font-black text-slate-500 tracking-wider uppercase mb-1">Target Baseline Default (Umum)</label>
+                        <div className="relative">
+                          <input 
+                            type="number"
+                            required
+                            min={1}
+                            value={defaultBaselineInput}
+                            onChange={(e) => setDefaultBaselineInput(e.target.value)}
+                            className="w-full pl-3.5 pr-14 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500"
+                            id="input_default_baseline"
+                          />
+                          <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">SKU/Hari</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1">Berlaku sebagai target default semua hari jika tidak ada target kustom.</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-black text-slate-500 tracking-wider uppercase mb-1">Target Khusus Hari Ini Saja</label>
+                        <div className="relative">
+                          <input 
+                            type="number"
+                            required
+                            min={0}
+                            value={customTodayInput}
+                            onChange={(e) => setCustomTodayInput(e.target.value)}
+                            className="w-full pl-3.5 pr-14 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500"
+                            id="input_custom_today"
+                          />
+                          <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">SKU/Hari</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1">Khusus tanggal berjalan hari ini. Besok tepat pukul 07:00 Pagi otomatis kembali menggunakan baseline default.</p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wide transition-all shadow-md cursor-pointer flex items-center justify-center gap-1.5"
+                      id="btn_save_baseline"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Simpan Pengaturan Target</span>
+                    </button>
+                  </form>
+
+                  {/* Change Password Form */}
+                  <form onSubmit={handleUpdatePin} className="space-y-4 pt-4 border-t border-slate-100" id="pin_form">
+                    <h4 className="text-[11px] font-black text-slate-500 tracking-wider uppercase pb-1">Ubah PIN Keamanan Admin</h4>
+                    
+                    {pinUpdateSuccess && (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-xl flex items-center gap-2" id="pin_success">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                        <span>PIN Keamanan berhasil diperbarui!</span>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-[11px] font-black text-slate-500 tracking-wider uppercase mb-1">PIN Keamanan Baru</label>
+                      <input 
+                        type="password"
+                        required
+                        minLength={4}
+                        maxLength={12}
+                        placeholder="Masukkan PIN baru"
+                        value={newPinInput}
+                        onChange={(e) => setNewPinInput(e.target.value)}
+                        className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold tracking-widest text-slate-800 focus:outline-none focus:border-blue-500"
+                        id="input_new_pin"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-wide transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                      id="btn_update_pin"
+                    >
+                      <span>Perbarui PIN</span>
+                    </button>
+                  </form>
+
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-150 bg-slate-50 flex justify-end" id="settings_modal_footer">
+              <button
+                onClick={() => setIsSettingsOpen(false)}
+                className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wide transition-colors cursor-pointer"
+                id="btn_close_settings_footer"
+              >
+                Tutup
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -431,39 +852,32 @@ interface DashboardCardProps {
   title: string;
   records: CheckerRecord[];
   isMonthly: boolean;
+  todayTarget: number;
+  monthlyTargetVal: number;
+  monthlyTargetDay: number;
 }
 
 function DashboardCard({
   id,
   title,
   records,
-  isMonthly
+  isMonthly,
+  todayTarget,
+  monthlyTargetVal,
+  monthlyTargetDay
 }: DashboardCardProps) {
   
-  // Calculate dynamic monthly target based on active running days in the current month
-  // - 1 week = 7 days, each person gets 1 day off (6 working days)
-  // - Baseline = 300 SKU per working day
-  const getMonthlyTargetSku = () => {
-    const now = new Date();
-    const currentDay = now.getDate(); // 1 to 31 depending on the day of the month
-    const expectedWorkingDays = Math.round(currentDay * 6 / 7);
-    const target = Math.max(1, expectedWorkingDays) * 300;
-    return { target, currentDay, expectedWorkingDays };
-  };
-
-  const monthlyTarget = getMonthlyTargetSku();
-
   // Custom SKU badge classes:
-  // - Daily Shifts: target is 300. Values >= 300 are green, < 300 are red.
-  // - Monthly: dynamic target based on current month running days >= target is green, < target is red.
+  // - Daily Shifts: target is dynamic todayTarget. Values >= todayTarget are green, < todayTarget are red.
+  // - Monthly: dynamic target based on current month running days >= monthlyTargetVal is green, < monthlyTargetVal is red.
   const getSkuBadgeClass = (value: number) => {
     if (isMonthly) {
-      if (value >= monthlyTarget.target) {
+      if (value >= monthlyTargetVal) {
         return "bg-[#def7ec] border-[#bfeecf]";
       }
       return "bg-[#fde8e8] border-[#fbd5d5]";
     } else {
-      if (value >= 300) {
+      if (value >= todayTarget) {
         return "bg-[#def7ec] border-[#bfeecf]";
       }
       return "bg-[#fde8e8] border-[#fbd5d5]";
@@ -480,7 +894,7 @@ function DashboardCard({
         </h3>
         <div className="w-full mt-1.5 h-[3px] bg-[#0a5cff]" id={`${id}_blue_line`}></div>
         <div className="text-[10px] text-slate-400 font-extrabold tracking-wider mt-1" id={`${id}_baseline_info`}>
-          {isMonthly ? `TARGET S/D TGL ${monthlyTarget.currentDay}: ≥ ${monthlyTarget.target} SKU` : "TARGET: ≥ 300 SKU"}
+          {isMonthly ? `TARGET S/D TGL ${monthlyTargetDay}: ≥ ${monthlyTargetVal} SKU` : `TARGET: ≥ ${todayTarget} SKU`}
         </div>
       </div>
 
